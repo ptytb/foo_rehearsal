@@ -10,10 +10,11 @@ UINT_PTR g_timer = 0;
 
 class CPlaybackStateDemo;
 typedef CWindowAutoLifetime<ImplementModelessTracking<CPlaybackStateDemo> > dialog_t;
-dialog_t *current_dialog = NULL;
+CPlaybackStateDemo *current_dialog = NULL;
 
 static double m_loop_from = 0.0;
 static double m_loop_to = 0.0;
+static bool m_paused = false;
 
 void timerCallback(HWND hwnd, UINT uMsg, UINT timerId, DWORD dwTime);
 
@@ -34,17 +35,52 @@ public:
 	void kill_timer() {
 		::KillTimer(NULL, g_timer);
 		g_timer = 0;
-		SetDlgItemText(IDC_ACTIVE, L"None");
+		update_status();
+	}
+
+	void resume_timer() {
+		g_timer = ::SetTimer(0, (UINT) 0, 5, TIMERPROC(&timerCallback));
+		if (g_timer == NULL) {
+			console::complain("Rehearsal", "Failed to create timer");
+		}
+		update_status();
 	}
 
 private:
 
+	void update_status() {
+		CString text;
+		
+		if (g_timer || m_paused) {
+			text.Format(L"%.3lf - %.3lf", m_loop_from, m_loop_to);
+		}
+		else {
+			text = L"None";
+		}
+		
+		if (m_paused) {
+			text.Format(L"%s (Paused)", text);
+		}
+		
+		SetDlgItemText(IDC_ACTIVE, text);
+	}
+
 	// Playback callback methods.
-	void on_playback_starting(play_control::t_track_command p_command, bool p_paused) { update(); }
+	void on_playback_starting(play_control::t_track_command p_command, bool p_paused) {
+		m_paused = false;
+		update_status();
+		update();
+	}
 	
-	void on_playback_new_track(metadb_handle_ptr p_track) { kill_timer(); }
+	void on_playback_new_track(metadb_handle_ptr p_track) {
+		m_paused = false;
+		kill_timer();
+	}
 	
-	void on_playback_stop(play_control::t_stop_reason p_reason) { kill_timer(); }
+	void on_playback_stop(play_control::t_stop_reason p_reason) {
+		m_paused = false;
+		kill_timer();
+	}
 	
 	void on_playback_seek(double p_time) {
 		double position = m_playback_control->playback_get_position();
@@ -53,7 +89,20 @@ private:
 		}
 	}
 	
-	void on_playback_pause(bool p_state) { kill_timer(); }
+	void on_playback_pause(bool p_state) {
+		if (p_state) { // Pause
+			if (g_timer) {
+				m_paused = true;
+				kill_timer();
+			}
+		}
+		else { // Unpause
+			if (m_paused) {
+				m_paused = false;
+				resume_timer();				
+			}
+		}
+	}
 
 	void on_playback_edited(metadb_handle_ptr p_track) { kill_timer(); }
 
@@ -80,6 +129,7 @@ private:
 	}
 
 	void OnClearClicked(UINT, int, CWindow) {
+		m_paused = false;
 		kill_timer();
 	}
 
@@ -123,26 +173,23 @@ static void timerCallback(HWND hwnd, UINT uMsg, UINT timerId, DWORD dwTime) {
 
 void CPlaybackStateDemo::OnAccept(UINT, int, CWindow) {
 	CString text;
-	
-	GetDlgItemText(IDC_LOOP_FROM, text);
-	m_loop_from = _wtof(text);
-	
-	GetDlgItemText(IDC_LOOP_TO, text);
-	m_loop_to = _wtof(text);
-
-	text.Format(L"%.3lf - %.3lf", m_loop_from, m_loop_to);
-	SetDlgItemText(IDC_ACTIVE, text);
 
 	if (g_timer) {
 		kill_timer();
 	}
 
-	g_timer = ::SetTimer(0, (UINT) 0, 5, TIMERPROC(&timerCallback));
-	if (g_timer == NULL) {
-		console::complain("Rehearsal", "Failed to create timer");
-	}
+	GetDlgItemText(IDC_LOOP_FROM, text);
+	m_loop_from = _wtof(text);
+	
+	GetDlgItemText(IDC_LOOP_TO, text);
+	m_loop_to = _wtof(text);
+	
+	if (!m_paused && m_playback_control->is_playing()) {
+		resume_timer();
+		m_playback_control->playback_seek(m_loop_from);
+	}	
 
-	m_playback_control->playback_seek(m_loop_from);
+	update_status();
 }
 
 
@@ -157,15 +204,11 @@ BOOL CPlaybackStateDemo::OnInitDialog(CWindow, LPARAM) {
 	text.Format(L"%.3lf", m_loop_to);
 	SetDlgItemText(IDC_LOOP_TO, text);
 
-	if (g_timer) {
-		text.Format(L"%.3lf - %.3lf", m_loop_from, m_loop_to);
-	}
-	else {
-		text = L"None";
-	}
-	SetDlgItemText(IDC_ACTIVE, text);
+	update_status();
 
-	::ShowWindowCentered(*this,GetParent()); // Function declared in SDK helpers.
+	current_dialog = this;
+
+	::ShowWindowCentered(*this, GetParent()); // Function declared in SDK helpers.
 	return TRUE;
 }
 
@@ -176,8 +219,11 @@ void RunPlaybackStateDemo() {
 	try {
 		// ImplementModelessTracking registers our dialog to receive dialog messages thru main app loop's IsDialogMessage().
 		// CWindowAutoLifetime creates the window in the constructor (taking the parent window as a parameter) and deletes the object when the window has been destroyed (through WTL's OnFinalMessage).
-		current_dialog = new dialog_t(core_api::get_main_window());
-		current_dialog = NULL;		
+		if (current_dialog) {
+			current_dialog->BringWindowToTop();
+			return;
+		}
+		new dialog_t(core_api::get_main_window());
 	} catch(std::exception const & e) {
 		popup_message::g_complain("Dialog creation failure", e);
 	}
