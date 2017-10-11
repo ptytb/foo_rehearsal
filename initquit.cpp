@@ -10,6 +10,11 @@ extern static_api_ptr_t<playback_control> *g_playback_control;
 extern UINT_PTR g_timer;
 extern nlohmann::json *json_intervals;
 
+CStringA wctomb(CString s);
+CString mbtowc(CStringA s);
+
+extern cfg_string cfg_bogoSetting1;
+
 void save_track_db();
 void load_track_db();
 
@@ -42,14 +47,27 @@ public:
 static initquit_factory_t<myinitquit> g_myinitquit_factory;
 
 void save_track_db() {
-	std::ofstream of(L"D:\\work\\foo_rehearsal.json");
+	CStringA text(cfg_bogoSetting1);
+	CString path = mbtowc(text);
+	wchar_t path_w[500];
+	ExpandEnvironmentStrings(path, path_w, 500);
+	std::ofstream of(path_w);
+
 	of << (*json_intervals);
+
 	of.close();
 }
 
 void load_track_db() {
-	std::ifstream of(L"D:\\work\\foo_rehearsal.json");
+	CStringA text(cfg_bogoSetting1);
+	CString path = mbtowc(text);
+	wchar_t path_w[500];
+	ExpandEnvironmentStrings(path, path_w, 500);
+	std::ifstream of(path_w);
+
 	if (of.is_open()) {
 		of >> (*json_intervals);
 	}
+
+	of.close();
 }

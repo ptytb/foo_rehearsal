@@ -20,6 +20,10 @@ static_api_ptr_t<metadb_handle> *g_metadb_handle;
 
 json *json_intervals = NULL;
 
+int json_intervals_get_count() {
+	return json_intervals->size();
+}
+
 extern UINT_PTR g_timer;
 extern int g_timer_owner;
 extern TimerOwner *g_windows[2];

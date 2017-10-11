@@ -97,6 +97,21 @@ BEGIN
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,17,185,234,10
 END
 
+IDD_MYPREFERENCES DIALOGEX 0, 0, 332, 288
+STYLE DS_SETFONT | WS_CHILD
+FONT 8, "Microsoft Sans Serif", 400, 0, 0x0
+BEGIN
+    RTEXT           "Database path:",IDC_STATIC,7,59,73,8
+    EDITTEXT        IDC_BOGO1,88,58,179,12,ES_AUTOHSCROLL
+    RTEXT           "Bogo setting 2:",IDC_STATIC,20,117,59,8,NOT WS_VISIBLE
+    EDITTEXT        IDC_BOGO2,88,115,40,12,ES_AUTOHSCROLL | ES_NUMBER | NOT WS_VISIBLE
+    LTEXT           "Choose file where intervals will be saved in JSON format:",IDC_STATIC,17,16,204,8
+    PUSHBUTTON      "Browse",IDC_BROWSE,275,57,50,14
+    RTEXT           "Tracks in database:",IDC_STATIC,7,41,71,8
+    LTEXT           "Static",IDC_TRACKS,89,40,19,8
+    LTEXT           "DB is loaded and saved at app startup and shutdown",IDC_STATIC,16,95,204,8
+END
+
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -121,6 +136,14 @@ BEGIN
         TOPMARGIN, 7
         BOTTOMMARGIN, 245
     END
+
+    IDD_MYPREFERENCES, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 325
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 281
+    END
 END
 #endif    // APSTUDIO_INVOKED
 
@@ -136,6 +159,11 @@ BEGIN
 END
 
 IDD_LOOP_SWITCHER AFX_DIALOG_LAYOUT
+BEGIN
+    0
+END
+
+IDD_MYPREFERENCES AFX_DIALOG_LAYOUT
 BEGIN
     0
 END
