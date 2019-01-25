@@ -21,8 +21,15 @@
 #define IDC_LIST                        1027
 #define IDC_CHECK1                      1029
 #define IDC_STOP_AFTER_FINISHED         1029
+#define IDC_SHUFFLE_PARTS               1030
+#define IDC_SHUFFLE_INTERVALS           1030
 #define IDC_BROWSE                      1031
 #define IDC_TRACKS                      1032
+#define IDC_EDIT1                       1034
+#define IDC_SHUFFLE_AMOUNT              1034
+#define IDC_SHUFFLE_SPIN_BUTTON         1036
+#define IDC_LABEL_LOOP                  1037
+#define IDC_BOX                         1038
 
 // Next default values for new objects
 // 
@@ -30,7 +37,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        108
 #define _APS_NEXT_COMMAND_VALUE         40001
-#define _APS_NEXT_CONTROL_VALUE         1033
+#define _APS_NEXT_CONTROL_VALUE         1039
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

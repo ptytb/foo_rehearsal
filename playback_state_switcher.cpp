@@ -6,8 +6,17 @@
 //#include "filesystem.h"
 
 #include <Windows.h>
+
+#include <atlbase.h>
+#include <atlapp.h>
+#include <atlcrack.h>
+#include <atlwin.h>
+#include <atlframe.h>
+
 #include <functional>
+#include <list>
 #include <cmath>
+#include <random>
 
 #include "json.hpp"
 using namespace nlohmann;
@@ -37,6 +46,12 @@ static double m_loop_from = 0.0;
 static double m_loop_to = 0.0;
 static bool m_paused = false;
 static bool m_stop_after = false;
+static bool m_shuffle = false;
+static int m_shuffle_amount = -1;
+static int m_shuffle_counter = 0;
+static std::vector<int> m_shuffle_queue;
+static int m_highlighted = -1;  // Exclude clicked item from shuffled queue
+
 
 void timerCallback(HWND hwnd, UINT uMsg, UINT timerId, DWORD dwTime);
 
@@ -49,13 +64,15 @@ void update_other() {
 
 class CPlaybackStateSwitcher :
 	public CDialogImpl<CPlaybackStateSwitcher>,
+	public CDialogResize<CPlaybackStateSwitcher>,
 	private play_callback_impl_base,
-	public TimerOwner {
+	public TimerOwner	
+{
 
 public:
 	enum { IDD = IDD_LOOP_SWITCHER };
 
-	BEGIN_MSG_MAP(CPlaybackStateSwitcher)
+	BEGIN_MSG_MAP_EX(CPlaybackStateSwitcher)
 		MSG_WM_INITDIALOG(OnInitDialog)
 		COMMAND_HANDLER_EX(IDCANCEL, BN_CLICKED, OnCancel)
 		COMMAND_HANDLER_EX(IDOK, BN_CLICKED, OnAccept)
@@ -68,7 +85,24 @@ public:
 		NOTIFY_HANDLER(IDC_LIST, NM_DBLCLK, OnNMDblclkList)
 		NOTIFY_HANDLER(IDC_LIST, LVN_KEYDOWN, OnListKeyDown)
 		COMMAND_HANDLER_EX(IDC_STOP_AFTER_FINISHED, BN_CLICKED, OnStopCheckbox)
+		COMMAND_HANDLER_EX(IDC_SHUFFLE_INTERVALS, BN_CLICKED, OnShuffleCheckbox)
+		COMMAND_HANDLER_EX(IDC_SHUFFLE_AMOUNT, EN_CHANGE, OnShuffleAmountChanged)
+		CHAIN_MSG_MAP(CDialogResize<CPlaybackStateSwitcher>)
 	END_MSG_MAP()
+
+	BEGIN_DLGRESIZE_MAP(CPlaybackStateSwitcher)
+		DLGRESIZE_CONTROL(IDOK, DLSZ_MOVE_Y)
+		DLGRESIZE_CONTROL(IDC_CLEAR, DLSZ_MOVE_Y)
+		DLGRESIZE_CONTROL(IDCANCEL, DLSZ_MOVE_X | DLSZ_MOVE_Y)
+		DLGRESIZE_CONTROL(IDC_LIST, DLSZ_SIZE_X | DLSZ_SIZE_Y)
+		DLGRESIZE_CONTROL(IDC_BOX, DLSZ_SIZE_X | DLSZ_SIZE_Y)
+		DLGRESIZE_CONTROL(IDC_STOP_AFTER_FINISHED, DLSZ_MOVE_Y)
+		DLGRESIZE_CONTROL(IDC_SHUFFLE_AMOUNT, DLSZ_MOVE_Y)
+		DLGRESIZE_CONTROL(IDC_SHUFFLE_INTERVALS, DLSZ_MOVE_Y)
+		DLGRESIZE_CONTROL(IDC_SHUFFLE_SPIN_BUTTON, DLSZ_MOVE_Y)
+		DLGRESIZE_CONTROL(IDC_LABEL_LOOP, DLSZ_MOVE_Y)
+		DLGRESIZE_CONTROL(IDC_ACTIVE, DLSZ_MOVE_Y)
+	END_DLGRESIZE_MAP()
 
 	void kill_timer() {
 		if (g_timer_owner && g_timer_owner != TIMER_OWNER) {
@@ -105,11 +139,22 @@ public:
 		update_status();
 	}
 
+	void FireLooping();
+	void PlayCurrentListItem(int nItem = -1);
+
+	void BeforePlayInterval();
+
+	int GetIntervalListItemCount() {
+		return list->GetItemCount();
+	}
+
+	int GetSelectedItemIndex() {
+		return list->GetSelectedIndex();
+	}
+
 private:
 	void save_track_profile();
-	void load_track_profile();
-
-	void SelectCurrentListItem();
+	void load_track_profile();	
 
 	void update_status() {
 		CString text;
@@ -134,7 +179,7 @@ private:
 		SetDlgItemText(IDC_ACTIVE, text);
 	}
 
-	// Playback callback methods.
+	// Playback callback methods. Before on_playback_new_track()
 	void on_playback_starting(play_control::t_track_command p_command, bool p_paused) {
 		m_paused = false;
 		update_status();
@@ -145,6 +190,13 @@ private:
 		m_paused = false;
 		kill_timer();
 		load_track_profile();
+
+		//if (m_shuffle) {
+		//	BeforePlayInterval();
+		//	list->SetItemState(0, LVIS_SELECTED, LVIS_SELECTED);
+		//	//list->SetItemState(0, ~LVIS_SELECTED, LVIS_SELECTED);
+		//	PlayCurrentListItem();
+		//}
 	}
 
 	void on_playback_stop(play_control::t_stop_reason p_reason) {
@@ -225,7 +277,7 @@ private:
 		text.Format(L"%02.0lf : %02.0lf : %02.3lf", hours, mins, seconds);
 		SetDlgItemText(id_label, text);
 	}
-
+	
 	void OnLoopFromChanged(UINT, int, CWindow) {
 		util_format_time(IDC_LOOP_FROM, IDC_HMS_FROM);
 	}
@@ -273,6 +325,17 @@ private:
 		return FALSE;
 	}
 
+	LRESULT OnShuffleCheckbox(UINT, int, CWindow) {
+		CCheckBox *cb = new CCheckBox(GetDlgItem(IDC_SHUFFLE_INTERVALS));
+		int state = cb->GetCheck();
+		m_shuffle = (state != BST_UNCHECKED);
+		delete cb;
+		return FALSE;
+	}
+	
+	void OnShuffleAmountChanged(UINT, int, CWindow) {
+		m_shuffle_amount = GetDlgItemInt(IDC_SHUFFLE_AMOUNT);
+	}
 
 	BOOL OnInitDialog(CWindow, LPARAM);
 
@@ -316,21 +379,58 @@ static void timerCallback(HWND hwnd, UINT uMsg, UINT timerId, DWORD dwTime) {
 	if (current >= m_loop_to) {
 		(*g_playback_control)->playback_seek(m_loop_from);
 
-		if (m_stop_after) {
+		int nItems = current_dialog->GetIntervalListItemCount();
+
+		++m_shuffle_counter;
+		
+		bool shuffleThresholdReached =
+			m_shuffle
+			&& m_shuffle_counter > 0
+			&& (m_shuffle_amount == 0 && m_shuffle_counter == nItems
+				|| m_shuffle_amount == m_shuffle_counter);
+
+		if (m_stop_after || m_shuffle || shuffleThresholdReached) {
 			current_dialog->kill_timer();
 			(*g_playback_control)->pause(true);
 			update_other();
 		}
+
+		bool useShuffle = m_shuffle_amount <= nItems;
+
+		if (m_shuffle_queue.empty() && useShuffle && !shuffleThresholdReached) {
+			m_shuffle_queue.resize(nItems);
+
+			std::generate(m_shuffle_queue.begin(), m_shuffle_queue.end(), [n = 0]() mutable {
+				return n++;
+			});
+
+			if (m_highlighted != -1) {
+				m_shuffle_queue.erase(m_shuffle_queue.begin() + m_highlighted);
+			}			
+
+			std::random_device rd;
+			std::shuffle(m_shuffle_queue.begin(), m_shuffle_queue.end(), std::default_random_engine{ rd() });
+		}
+		
+		if (m_shuffle && !m_stop_after && !shuffleThresholdReached) {
+			//current_dialog->FireLooping();
+
+			int nRandom;
+			if (useShuffle) {
+				nRandom = m_shuffle_queue.back();
+				m_shuffle_queue.pop_back();
+			}
+			else {
+				nRandom = rand() % nItems;
+			}
+
+			current_dialog->PlayCurrentListItem(nRandom);
+		}
+
 	}
 }
 
-void CPlaybackStateSwitcher::OnAccept(UINT, int, CWindow) {
-	if (g_timer_owner && g_timer_owner != TIMER_OWNER) {
-		return;
-	}
-
-	CString text;
-
+void CPlaybackStateSwitcher::FireLooping() {
 	update_timer();
 
 	if (!m_paused && m_playback_control->is_playing()) {
@@ -342,10 +442,21 @@ void CPlaybackStateSwitcher::OnAccept(UINT, int, CWindow) {
 	update_other();
 }
 
+void CPlaybackStateSwitcher::OnAccept(UINT, int, CWindow) {
+	if (g_timer_owner && g_timer_owner != TIMER_OWNER) {
+		return;
+	}
+
+	FireLooping();
+}
+
 BOOL CPlaybackStateSwitcher::OnInitDialog(CWindow, LPARAM) {
-	update();
+	DlgResize_Init(true);
+	update();	
 
 	CString text;
+
+	::SendMessage(GetDlgItem(IDC_SHUFFLE_SPIN_BUTTON), UDM_SETRANGE, 0, MAKELPARAM(999999, 0));
 
 	text.Format(L"%.3lf", m_loop_from);
 	SetDlgItemText(IDC_LOOP_FROM, text);
@@ -372,7 +483,9 @@ BOOL CPlaybackStateSwitcher::OnInitDialog(CWindow, LPARAM) {
 
 	update_status();
 	load_track_profile();
+	
 	::ShowWindowCentered(*this, GetParent()); // Function declared in SDK helpers.
+	
 	return TRUE;
 }
 
@@ -394,8 +507,10 @@ void RunPlaybackStateSwitcher() {
 	}
 }
 
-void CPlaybackStateSwitcher::SelectCurrentListItem() {
-	int nItem = list->GetSelectedIndex();
+void CPlaybackStateSwitcher::PlayCurrentListItem(int nItem) {
+	if (nItem == -1) {
+		nItem = list->GetSelectedIndex();
+	}
 
 	CString text;
 
@@ -422,9 +537,16 @@ void CPlaybackStateSwitcher::SelectCurrentListItem() {
 	update_other();
 }
 
+void CPlaybackStateSwitcher::BeforePlayInterval() {
+	m_shuffle_queue.clear();
+	m_shuffle_counter = 0;
+	m_highlighted = GetSelectedItemIndex();
+}
+
 LRESULT CPlaybackStateSwitcher::OnNMDblclkList(int /*idCtrl*/, LPNMHDR pNMHDR, BOOL& /*bHandled*/)
 {
-	SelectCurrentListItem();
+	BeforePlayInterval();
+	PlayCurrentListItem();
 	return 0;
 }
 
@@ -449,7 +571,8 @@ LRESULT CPlaybackStateSwitcher::OnListKeyDown(int /*idCtrl*/, LPNMHDR pnmh, BOOL
 		break;
 
 	case VK_RETURN:
-		SelectCurrentListItem();
+		BeforePlayInterval();
+		PlayCurrentListItem();
 		break;
 	}
 
