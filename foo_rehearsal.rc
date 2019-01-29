@@ -91,29 +91,37 @@ BEGIN
     PUSHBUTTON      "Add",IDC_ADD,230,59,32,14
     LTEXT           "Title",IDC_STATIC,7,62,14,8
     EDITTEXT        IDC_TITLE,35,59,189,14,ES_AUTOHSCROLL
-    GROUPBOX        "Intervals",IDC_BOX,7,90,255,91,0,WS_EX_TRANSPARENT
+    GROUPBOX        "Intervals (Delete=remove an item)",IDC_BOX,7,90,255,91,0,WS_EX_TRANSPARENT
     CONTROL         "",IDC_LIST,"SysListView32",LVS_ALIGNLEFT | WS_BORDER | WS_TABSTOP,15,102,238,69
     CONTROL         "Stop after interval finished",IDC_STOP_AFTER_FINISHED,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,7,185,100,10
-    CONTROL         "Shuffle some intervals (0=all):",IDC_SHUFFLE_INTERVALS,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,114,185,109,10
-    EDITTEXT        IDC_SHUFFLE_AMOUNT,225,183,25,14,ES_AUTOHSCROLL | ES_NUMBER
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,7,185,97,10
+    CONTROL         "Shuffle intervals † (0=all, -1=loop):",IDC_SHUFFLE_INTERVALS,
+                    "Button",BS_AUTO3STATE | WS_TABSTOP,109,185,125,10
+    EDITTEXT        IDC_SHUFFLE_AMOUNT,235,183,16,14,ES_AUTOHSCROLL | ES_NUMBER
     CONTROL         "",IDC_SHUFFLE_SPIN_BUTTON,"msctls_updown32",UDS_SETBUDDYINT | UDS_AUTOBUDDY | UDS_ARROWKEYS,251,183,11,14
+    PUSHBUTTON      "Export...",IDC_EXPORT,164,231,36,14
+    PUSHBUTTON      "Import...",IDC_IMPORT,126,231,36,14
 END
 
 IDD_MYPREFERENCES DIALOGEX 0, 0, 332, 288
 STYLE DS_SETFONT | WS_CHILD
 FONT 8, "Microsoft Sans Serif", 400, 0, 0x0
 BEGIN
-    RTEXT           "Database path:",IDC_STATIC,7,59,73,8
-    EDITTEXT        IDC_BOGO1,88,58,179,12,ES_AUTOHSCROLL
-    RTEXT           "Bogo setting 2:",IDC_STATIC,20,117,59,8,NOT WS_VISIBLE
-    EDITTEXT        IDC_BOGO2,88,115,40,12,ES_AUTOHSCROLL | ES_NUMBER | NOT WS_VISIBLE
-    LTEXT           "Choose file where intervals will be saved in JSON format:",IDC_STATIC,17,16,204,8
-    PUSHBUTTON      "Browse",IDC_BROWSE,275,57,50,14
-    RTEXT           "Tracks in database:",IDC_STATIC,7,41,71,8
-    LTEXT           "Static",IDC_TRACKS,89,40,19,8
-    LTEXT           "DB is loaded and saved at app startup and shutdown",IDC_STATIC,16,95,204,8
+    RTEXT           "Bogo setting 2:",IDC_STATIC,25,212,59,8,NOT WS_VISIBLE
+    EDITTEXT        IDC_BOGO2,93,210,40,12,ES_AUTOHSCROLL | ES_NUMBER | NOT WS_VISIBLE
+    CONTROL         "Autoload intervals from a CUE sheet if exists",IDC_AUTOLOAD_CUE,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,20,114,154,10
+    GROUPBOX        "Interval Database",IDC_STATIC,7,7,318,85
+    RTEXT           "Database path:",IDC_STATIC,18,38,62,8
+    EDITTEXT        IDC_BOGO1,88,37,179,12,ES_AUTOHSCROLL
+    LTEXT           "Choose file where intervals will be saved in JSON format:",IDC_STATIC,17,22,204,8
+    PUSHBUTTON      "Browse",IDC_BROWSE,271,36,50,14
+    RTEXT           "Tracks in database:",IDC_STATIC,78,53,71,8
+    LTEXT           "Static",IDC_TRACKS,157,53,19,8
+    LTEXT           "Database is loaded and saved at app startup and shutdown",IDC_STATIC,16,74,204,8
+    GROUPBOX        "Utilities",IDC_STATIC,7,97,318,71
+    CONTROL         "Keep switcher window state between app restarts",IDC_AUTOLOAD_CUE2,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,20,130,172,10
 END
 
 
@@ -183,6 +191,8 @@ BEGIN
     0, 0, 0, 0,
     0, 0, 100, 100,
     0, 0, 100, 100,
+    0, 100, 0, 0,
+    0, 100, 0, 0,
     0, 100, 0, 0,
     0, 100, 0, 0,
     0, 100, 0, 0,

@@ -3,6 +3,8 @@
 // Used by foo_rehearsal.rc
 //
 #define IDC_CLEAR                       3
+#define IDC_EXPORT                      4
+#define IDC_IMPORT                      6
 #define IDD_LOOP                        103
 #define IDD_LOOP_SWITCHER               104
 #define IDD_MYPREFERENCES               148
@@ -21,8 +23,10 @@
 #define IDC_LIST                        1027
 #define IDC_CHECK1                      1029
 #define IDC_STOP_AFTER_FINISHED         1029
+#define IDC_AUTOLOAD_CUE                1029
 #define IDC_SHUFFLE_PARTS               1030
 #define IDC_SHUFFLE_INTERVALS           1030
+#define IDC_AUTOLOAD_CUE2               1030
 #define IDC_BROWSE                      1031
 #define IDC_TRACKS                      1032
 #define IDC_EDIT1                       1034

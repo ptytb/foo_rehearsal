@@ -85,8 +85,17 @@
       <AdditionalIncludeDirectories>$(ProjectDir)\..\SDK;$(ProjectDir)\..\..\wtl\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <StringPooling>true</StringPooling>
-      <ControlFlowGuard>Guard</ControlFlowGuard>
+      <ControlFlowGuard>false</ControlFlowGuard>
       <LanguageStandard>stdcpplatest</LanguageStandard>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <ExceptionHandling>false</ExceptionHandling>
+      <BufferSecurityCheck>false</BufferSecurityCheck>
+      <FloatingPointExceptions>false</FloatingPointExceptions>
+      <CreateHotpatchableImage>false</CreateHotpatchableImage>
+      <SDLCheck>false</SDLCheck>
+      <Optimization>MinSpace</Optimization>
+      <FavorSizeOrSpeed>Size</FavorSizeOrSpeed>
+      <RuntimeTypeInfo>false</RuntimeTypeInfo>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -104,6 +113,10 @@
     </ResourceCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\libcue\time.c">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="contextmenu.cpp" />
     <ClCompile Include="decode.cpp" />
     <ClCompile Include="dsp.cpp" />
@@ -130,9 +143,13 @@
     <ResourceCompile Include="foo_rehearsal.rc" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="README.md" />
     <None Include="readme.txt" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\libcue\build\cue.vcxproj">
+      <Project>{97f11032-6264-3512-8f76-9a1fcd9c0222}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\..\pfc\pfc.vcxproj">
       <Project>{ebfffb4e-261d-44d3-b89c-957b31a0bf9c}</Project>
     </ProjectReference>
