@@ -248,6 +248,9 @@ private:
 	void OnImport(UINT, int, CWindow);
 	void OnExport(UINT, int, CWindow);
 
+	void ImportCUE(std::string filename);
+	void ImportJSON(std::string filename);
+
 	void OnFromCurrentClicked(UINT, int, CWindow) {
 		CString text;
 		text.Format(L"%.3lf", (*m_playback_control)->playback_get_position());
@@ -520,8 +523,8 @@ std::string QueryUserCueSheetFilename(bool save = false)
 	OPENFILENAME ofn;
 	ZeroMemory(&ofn, sizeof(ofn));
 	ofn.lStructSize = sizeof(ofn);
-	ofn.hwndOwner = NULL;  // If you have a window to center over, put its HANDLE here
-	ofn.lpstrFilter = L"CUE Files\0*.cue\0\0";
+	ofn.hwndOwner = NULL;
+	ofn.lpstrFilter = L"CUE Files\0*.cue\0JSON Chapters from ffprobe\0*.json\0\0";
 	ofn.lpstrFile = szFile;
 	ofn.lpstrFile[0] = '\0';
 	ofn.nMaxFile = MAX_PATH;
@@ -558,9 +561,8 @@ CString CueTimeStampToSeconds(long t)
 	return value;
 }
 
-void CPlaybackStateSwitcher::OnImport(UINT, int, CWindow)
+void CPlaybackStateSwitcher::ImportCUE(std::string cue_sheet_filename)
 {
-	auto cue_sheet_filename = QueryUserCueSheetFilename(); 
 	FILE *f = std::fopen(cue_sheet_filename.c_str(), "r");
 	if (f == NULL) {
 		return;
@@ -592,6 +594,61 @@ void CPlaybackStateSwitcher::OnImport(UINT, int, CWindow)
 	cd_delete(cue);
 	std::fclose(f);
 	save_track_profile();
+}
+
+void CPlaybackStateSwitcher::ImportJSON(std::string filename)
+{
+	nlohmann::json json_chapters;
+
+	std::ifstream of(filename);
+
+	if (of.is_open()) {
+		of >> json_chapters;
+	} 
+	of.close();
+
+	auto chapters = json_chapters["chapters"];
+
+	begin_update();
+	int n = 0;
+	for (json::const_iterator i = chapters.cbegin(); i != chapters.cend(); ++i, ++n)
+	{ 
+		auto start = (*i)["start_time"].get<std::string>();
+		auto end = (*i)["end_time"].get<std::string>();
+
+		list->AddItem(n, 0, L"");
+		list->AddItem(n, 1, CString(start.c_str()));
+		list->AddItem(n, 2, CString(end.c_str()));
+
+		auto tags = (*i)["tags"];
+		auto title = tags["title"].get<std::string>();
+		list->AddItem(n, 3, CString(title.c_str()));
+
+		list->SetCheckState(n, true);
+	} 
+	end_update(); 
+	save_track_profile();
+}
+
+bool ends_with(std::string const &fullString, std::string const &ending) {
+	if (fullString.length() >= ending.length()) {
+		return (0 == fullString.compare(fullString.length() - ending.length(), ending.length(), ending));
+	}
+	else {
+		return false;
+	}
+}
+
+void CPlaybackStateSwitcher::OnImport(UINT, int, CWindow)
+{
+	auto filename = QueryUserCueSheetFilename(); 
+
+	if (ends_with(filename, ".cue")) {
+		ImportCUE(filename);
+	}
+	else if (ends_with(filename, ".json")) {
+		ImportJSON(filename);
+	}
 }
 
 std::string SecondsToCueMMSSFF(std::string secs_s)
@@ -1011,7 +1068,7 @@ void CPlaybackStateSwitcher::save_track_profile()
 		bool checked = list->GetCheckState(i);
 		record.push_back(checked);
 
-		for (int col = 1; col < HDR_COUNT; ++col) {
+		for (int col = 1; col < (int) HDR_COUNT; ++col) {
 			list->GetItemText(i, col, text);
 			auto text_mb = wctomb(text);
 			record.push_back(text_mb.GetBuffer());

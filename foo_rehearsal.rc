@@ -119,9 +119,11 @@ BEGIN
     RTEXT           "Tracks in database:",IDC_STATIC,78,53,71,8
     LTEXT           "Static",IDC_TRACKS,157,53,19,8
     LTEXT           "Database is loaded and saved at app startup and shutdown",IDC_STATIC,16,74,204,8
-    GROUPBOX        "Utilities",IDC_STATIC,7,97,318,71
+    GROUPBOX        "Utilities",IDC_STATIC,7,97,318,90
     CONTROL         "Keep switcher window state between app restarts",IDC_AUTOLOAD_CUE2,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,20,130,172,10
+    CONTROL         "",IDC_SLIDER1,"msctls_trackbar32",TBS_BOTH | TBS_NOTICKS | WS_TABSTOP,80,156,218,14
+    LTEXT           "Timer resolution:",IDC_STATIC,23,159,52,8
 END
 
 
