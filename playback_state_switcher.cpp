@@ -12,6 +12,7 @@
 #include <atlcrack.h>
 #include <atlwin.h>
 #include <atlframe.h>
+#include <atlcoll.h>
 
 #include <functional>
 #include <list>
@@ -676,6 +677,7 @@ std::string GetClipboardText()
 }
 
 void CPlaybackStateSwitcher::ImportFromClipboard() {
+	CString HHMMSStoSeconds(CString hhmmss);
 	CString mbtowc(CStringA s);
 
 	begin_update();
@@ -691,15 +693,15 @@ void CPlaybackStateSwitcher::ImportFromClipboard() {
 	std::string from, to, title;
 	while (RE2::FindAndConsume(&input, re, &from, &to, &title)) {
 		list->AddItem(n, HDR_CHECK, L"");
-		list->AddItem(n, HDR_FROM, mbtowc(from.c_str()));
-		list->AddItem(n, HDR_TO, mbtowc(to.c_str()));
+		list->AddItem(n, HDR_FROM, HHMMSStoSeconds(mbtowc(from.c_str())));
+		list->AddItem(n, HDR_TO, HHMMSStoSeconds(mbtowc(to.c_str())));
 		list->AddItem(n, HDR_TITLE, mbtowc(title.c_str()));
 
 		if (n > 0) {
 			CString prevTo;
 			list->GetItemText(n - 1, HDR_TO, prevTo);
 			if (prevTo.IsEmpty()) {
-				list->SetItemText(n - 1, HDR_TO, mbtowc(from.c_str()));
+				list->SetItemText(n - 1, HDR_TO, HHMMSStoSeconds(mbtowc(from.c_str())));
 			}
 		}
 
@@ -714,12 +716,13 @@ void CPlaybackStateSwitcher::ImportFromClipboard() {
 			list->GetItemText(n - 1, HDR_TO, lastTo);
 			if (lastTo.IsEmpty()) {
 				auto currentTrackLength = p_out->get_length();
-				list->SetItemText(n - 1, HDR_TO, format_time(currentTrackLength, L":", false));
+				list->SetItemText(n - 1, HDR_TO, mbtowc(std::to_string(currentTrackLength).c_str()));
 			}
 		}
 	}
 
 	end_update();
+	save_track_profile();
 }
 
 bool ends_with(std::string const &fullString, std::string const &ending) {
@@ -755,6 +758,36 @@ std::string SecondsToCueMMSSFF(std::string secs_s)
 	CStringA value;
 	value.Format("%02d:%02d:%02d", mins, seconds, frames);
 	return value.GetString();
+}
+
+CString HHMMSStoSeconds(CString hhmmss) { 
+	CStringA wctomb(CString s);
+
+	if (hhmmss.IsEmpty()) {
+		return hhmmss;
+	}
+
+	int tokenPos = 0;
+	std::list<std::string> tokens;
+	
+	while (tokenPos >= 0) {
+		auto item = hhmmss.Tokenize(_T(":"), tokenPos);
+		if (item.IsEmpty()) continue;
+		tokens.push_back(wctomb(item).GetString());
+	}
+
+	int nToken = 0;
+	double seconds = 0.0;
+
+	for (auto item = tokens.rbegin(); item != tokens.rend(); ++item) {
+		double x = std::stod(*item);
+		seconds += x * std::pow(60, nToken);
+		++nToken;
+	}
+	
+	CString result;
+	result.Format(L"%.3lf", seconds);
+	return result;
 }
 
 void CPlaybackStateSwitcher::OnExport(UINT, int, CWindow)
