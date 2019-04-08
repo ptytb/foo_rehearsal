@@ -27,6 +27,8 @@ using namespace nlohmann;
 extern "C" {
 #include "../../libcue/time.h"
 }
+#include <re2/re2.h>
+#include <re2/stringpiece.h>
 
 enum { HDR_CHECK = 0, HDR_FROM, HDR_TO, HDR_TITLE, HDR_COUNT };
 
@@ -250,6 +252,7 @@ private:
 
 	void ImportCUE(std::string filename);
 	void ImportJSON(std::string filename);
+	void ImportFromClipboard();
 
 	void OnFromCurrentClicked(UINT, int, CWindow) {
 		CString text;
@@ -273,16 +276,27 @@ private:
 		update_other();
 	}
 
-	void util_format_time(int id_edit, int id_label) {
-		CString text;
-		GetDlgItemText(id_edit, text);
-		double t = _wtof(text);
+	CString format_time(double t, CString sep = L" : ", bool milliseconds = true) {
 		double hours = int(t) / 3600;
 		double mins = int(t - hours * 3600.0) / 60;
 		double seconds_int;
 		double seconds = modf(t, &seconds_int);
 		seconds += int(seconds_int) % 60;
-		text.Format(L"%02.0lf : %02.0lf : %02.3lf", hours, mins, seconds);
+		CString text;
+		if (milliseconds) {
+			text.Format(L"%02.0lf%s%02.0lf%s%02.3lf", hours, sep, mins, sep, seconds);
+		}
+		else {
+			text.Format(L"%02.0lf%s%02.0lf%s%02.0lf", hours, sep, mins, sep, seconds);
+		}
+		return text;
+	}
+
+	void util_format_time(int id_edit, int id_label) {
+		CString text;
+		GetDlgItemText(id_edit, text);
+		double t = _wtof(text);
+		text = format_time(t);
 		SetDlgItemText(id_label, text);
 	}
 	
@@ -630,6 +644,83 @@ void CPlaybackStateSwitcher::ImportJSON(std::string filename)
 	save_track_profile();
 }
 
+std::string GetClipboardText()
+{
+	// Try opening the clipboard
+	if (!OpenClipboard(nullptr)) {
+		return "";
+	}
+
+	// Get handle of clipboard object for ANSI text
+	HANDLE hData = GetClipboardData(CF_TEXT);
+	if (hData == nullptr)
+		return "";
+
+	// Lock the handle to get the actual text pointer
+	char * pszText = static_cast<char*>(GlobalLock(hData));
+	if (pszText == nullptr) {
+		return "";
+	}
+
+	// Save text in a string class instance
+	std::string text(pszText);
+
+	// Release the lock
+	GlobalUnlock(hData);
+
+	// Release the clipboard
+	CloseClipboard();
+
+	return text;
+}
+
+void CPlaybackStateSwitcher::ImportFromClipboard() {
+	CString mbtowc(CStringA s);
+
+	begin_update();
+
+	RE2::Options options(RE2::Quiet);
+	RE2 re("((?:\\d+:)+\\d+)(?:[[:punct:]]|\\s)*((?:\\d+:)+\\d+)?(?:[[:punct:]]|\\s)*(.*)(?:\\n|$)", options);
+	assert(re.ok()); // can check re.error() for details
+	
+	auto text = GetClipboardText();
+	re2::StringPiece input(text);
+	
+	int n = 0;
+	std::string from, to, title;
+	while (RE2::FindAndConsume(&input, re, &from, &to, &title)) {
+		list->AddItem(n, HDR_CHECK, L"");
+		list->AddItem(n, HDR_FROM, mbtowc(from.c_str()));
+		list->AddItem(n, HDR_TO, mbtowc(to.c_str()));
+		list->AddItem(n, HDR_TITLE, mbtowc(title.c_str()));
+
+		if (n > 0) {
+			CString prevTo;
+			list->GetItemText(n - 1, HDR_TO, prevTo);
+			if (prevTo.IsEmpty()) {
+				list->SetItemText(n - 1, HDR_TO, mbtowc(from.c_str()));
+			}
+		}
+
+		++n;
+	} 
+
+	if (n > 0) {
+		metadb_handle_ptr p_out;
+		bool playing = (*g_playback_control)->get_now_playing(p_out);
+		if (playing) {
+			CString lastTo;
+			list->GetItemText(n - 1, HDR_TO, lastTo);
+			if (lastTo.IsEmpty()) {
+				auto currentTrackLength = p_out->get_length();
+				list->SetItemText(n - 1, HDR_TO, format_time(currentTrackLength, L":", false));
+			}
+		}
+	}
+
+	end_update();
+}
+
 bool ends_with(std::string const &fullString, std::string const &ending) {
 	if (fullString.length() >= ending.length()) {
 		return (0 == fullString.compare(fullString.length() - ending.length(), ending.length(), ending));
@@ -922,6 +1013,7 @@ LRESULT CPlaybackStateSwitcher::OnListItemChanged(int /*idCtrl*/, LPNMHDR pNMHDR
 LRESULT CPlaybackStateSwitcher::OnListKeyDown(int /*idCtrl*/, LPNMHDR pnmh, BOOL& /*bHandled*/)
 {
 	NMLVKEYDOWN* kd = (NMLVKEYDOWN*)pnmh;
+	bool controlKey = GetAsyncKeyState(VK_CONTROL) & 0x8000;
 
 	switch (kd->wVKey) {
 
@@ -950,8 +1042,6 @@ LRESULT CPlaybackStateSwitcher::OnListKeyDown(int /*idCtrl*/, LPNMHDR pnmh, BOOL
 
 	case 'a':
 	case 'A': {
-		bool controlKey = GetAsyncKeyState(VK_CONTROL) & 0x8000;
-
 		if (controlKey) {
 			list->SetRedraw(false);
 			for (int i = 0; i < GetIntervalListItemCount(); ++i) {
@@ -960,6 +1050,12 @@ LRESULT CPlaybackStateSwitcher::OnListKeyDown(int /*idCtrl*/, LPNMHDR pnmh, BOOL
 			list->SetRedraw(true);
 		}
 
+		break;
+	}
+
+	case 'v':
+	case 'V': {
+		ImportFromClipboard();
 		break;
 	}
 

@@ -91,7 +91,7 @@ BEGIN
     PUSHBUTTON      "Add",IDC_ADD,230,59,32,14
     LTEXT           "Title",IDC_STATIC,7,62,14,8
     EDITTEXT        IDC_TITLE,35,59,189,14,ES_AUTOHSCROLL
-    GROUPBOX        "Intervals (Delete=remove an item)",IDC_BOX,7,90,255,91,0,WS_EX_TRANSPARENT
+    GROUPBOX        "Intervals (Delete=remove an item, Ctrl-V try to paste intervals)",IDC_BOX,7,90,255,91,0,WS_EX_TRANSPARENT
     CONTROL         "",IDC_LIST,"SysListView32",LVS_ALIGNLEFT | WS_BORDER | WS_TABSTOP,15,102,238,69
     CONTROL         "Stop after interval finished",IDC_STOP_AFTER_FINISHED,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,7,185,97,10
