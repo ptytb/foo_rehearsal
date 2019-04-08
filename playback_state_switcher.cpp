@@ -27,6 +27,7 @@ using namespace nlohmann;
 extern "C" {
 #include "../../libcue/time.h"
 }
+#define NOMINMAX
 #include <re2/re2.h>
 #include <re2/stringpiece.h>
 
