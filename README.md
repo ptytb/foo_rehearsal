@@ -5,6 +5,7 @@ Foobar2000 plugin for looping track intervals and slicing CUE sheets.
 - Loop, shuffle or randomize through any subset of user-defined slices of track
 - Import intervals from a CUE Sheet
 - Import chapters from a video via JSON `ffprobe -i filename -print_format json -show_chapters -loglevel error > chapters.json`
+- Import intervals from YouTube time codes, etc. Copy a piece of text and Ctrl-V to switcher.
 - Export to CUE Sheet
 - Keeps all intervals for all tracks in a single `.json` file
 
