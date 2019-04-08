@@ -28,7 +28,7 @@ using namespace nlohmann;
 extern "C" {
 #include "../../libcue/time.h"
 }
-#define NOMINMAX
+//#define NOMINMAX
 #include <re2/re2.h>
 #include <re2/stringpiece.h>
 
@@ -534,6 +534,8 @@ void CPlaybackStateSwitcher::OnAccept(UINT, int, CWindow) {
 
 std::string QueryUserCueSheetFilename(bool save = false)
 {
+	CStringA wctomb(CString s);
+
 	wchar_t szFile[MAX_PATH];
 
 	OPENFILENAME ofn;
@@ -555,14 +557,14 @@ std::string QueryUserCueSheetFilename(bool save = false)
 			if (name.Right(4) != L".cue") {
 				name += L".cue";
 			}
-			return CStringA(name);
+			return wctomb(name).GetString();
 		}
 
 	}
 	else {
 		if (::GetOpenFileName(&ofn))
 		{
-			return CStringA(ofn.lpstrFile);
+			return wctomb(ofn.lpstrFile).GetString();
 		}
 	}
 	return "";
@@ -579,7 +581,8 @@ CString CueTimeStampToSeconds(long t)
 
 void CPlaybackStateSwitcher::ImportCUE(std::string cue_sheet_filename)
 {
-	FILE *f = std::fopen(cue_sheet_filename.c_str(), "r");
+	FILE *f = nullptr;
+	errno_t e = fopen_s(&f, cue_sheet_filename.c_str(), "r");
 	if (f == NULL) {
 		return;
 	}
@@ -593,7 +596,7 @@ void CPlaybackStateSwitcher::ImportCUE(std::string cue_sheet_filename)
 	int nTracks = cd_get_ntrack(cue);
 
 	begin_update();
-	for (size_t i = 0; i < nTracks; i++) {
+	for (int i = 0; i < nTracks; i++) {
 		Track *track = cd_get_track(cue, i + 1);
 		Cdtext *info = track_get_cdtext(track);
 		long start = track_get_start(track);
@@ -754,7 +757,7 @@ std::string SecondsToCueMMSSFF(std::string secs_s)
 	const auto frame = 1.0 / 75.0; // From CUE format standard
 	double whole_sec;
 	auto fractional_sec = std::modf(full_secs, &whole_sec);
-	int frames = fractional_sec / frame;
+	int frames = static_cast<int> ( fractional_sec / frame );
 	CStringA value;
 	value.Format("%02d:%02d:%02d", mins, seconds, frames);
 	return value.GetString();
@@ -1058,7 +1061,7 @@ LRESULT CPlaybackStateSwitcher::OnListKeyDown(int /*idCtrl*/, LPNMHDR pnmh, BOOL
 		//}
 		//else {
 		//}
-		LVITEM item;
+		//LVITEM item;
 		for (int i = 0, end = list->GetItemCount(); i < end; ) {
 			if (list->GetItemState(i, LVIS_SELECTED) == LVIS_SELECTED) {
 				list->DeleteItem(i);
